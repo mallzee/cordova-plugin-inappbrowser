@@ -78,6 +78,7 @@ public class InAppBrowser extends CordovaPlugin {
     // private static final String BLANK = "_blank";
     private static final String EXIT_EVENT = "exit";
     private static final String LOCATION = "location";
+    private static final String TOOLBAR = "toolbar";
     private static final String HIDDEN = "hidden";
     private static final String LOAD_START_EVENT = "loadstart";
     private static final String LOAD_STOP_EVENT = "loadstop";
@@ -90,6 +91,7 @@ public class InAppBrowser extends CordovaPlugin {
     private EditText edittext;
     private CallbackContext callbackContext;
     private boolean showLocationBar = true;
+    private boolean showToolbar = true;
     private boolean openWindowHidden = false;
     private boolean clearAllCache= false;
     private boolean clearSessionCache=false;
@@ -437,6 +439,15 @@ public class InAppBrowser extends CordovaPlugin {
     private boolean getShowLocationBar() {
         return this.showLocationBar;
     }
+    
+    /**
+     * Should we show the toolbar?
+     *
+     * @return boolean
+     */
+    private boolean getShowToolbar() {
+        return this.showToolbar;
+    }
 
     private InAppBrowser getInAppBrowser(){
         return this;
@@ -451,11 +462,16 @@ public class InAppBrowser extends CordovaPlugin {
     public String showWebPage(final String url, HashMap<String, Boolean> features) {
         // Determine if we should hide the location bar.
         showLocationBar = true;
+        showToolbar = true;
         openWindowHidden = false;
         if (features != null) {
             Boolean show = features.get(LOCATION);
             if (show != null) {
                 showLocationBar = show.booleanValue();
+            }
+            Boolean toolbar = features.get(TOOLBAR);
+            if (toolbar != null) {
+                showToolbar = toolbar.booleanValue();
             }
             Boolean hidden = features.get(HIDDEN);
             if (hidden != null) {
@@ -653,11 +669,14 @@ public class InAppBrowser extends CordovaPlugin {
 
                 // Add the views to our toolbar
                 toolbar.addView(actionButtonContainer);
-                toolbar.addView(edittext);
+                // Don't show the location bar if it's been disabled
+                if (getShowLocationBar()) {
+                    toolbar.addView(edittext);
+                }
                 toolbar.addView(close);
 
                 // Don't add the toolbar if its been disabled
-                if (getShowLocationBar()) {
+                if (getShowToolbar()) {
                     // Add our toolbar to our main view/layout
                     main.addView(toolbar);
                 }
