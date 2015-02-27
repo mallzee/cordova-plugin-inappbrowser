@@ -19,6 +19,7 @@
 package org.apache.cordova.inappbrowser;
 
 import android.annotation.SuppressLint;
+import android.app.ProgressDialog;
 import org.apache.cordova.inappbrowser.InAppBrowserDialog;
 import android.content.Context;
 import android.content.Intent;
@@ -713,6 +714,7 @@ public class InAppBrowser extends CordovaPlugin {
     public class InAppBrowserClient extends WebViewClient {
         EditText edittext;
         CordovaWebView webView;
+        ProgressDialog progressDialog;
 
         /**
          * Constructor.
@@ -723,6 +725,10 @@ public class InAppBrowser extends CordovaPlugin {
         public InAppBrowserClient(CordovaWebView webView, EditText mEditText) {
             this.webView = webView;
             this.edittext = mEditText;
+            
+            progressDialog = new ProgressDialog(webView.getContext());
+            progressDialog.setCancelable(false);
+            progressDialog.setIndeterminate(true);
         }
 
         /**
@@ -806,6 +812,8 @@ public class InAppBrowser extends CordovaPlugin {
             } catch (JSONException ex) {
                 Log.d(LOG_TAG, "Should never happen");
             }
+            
+            progressDialog.show();
         }
         
         public void onPageFinished(WebView view, String url) {
@@ -820,6 +828,8 @@ public class InAppBrowser extends CordovaPlugin {
             } catch (JSONException ex) {
                 Log.d(LOG_TAG, "Should never happen");
             }
+            
+            progressDialog.dismiss();
         }
         
         public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
@@ -836,6 +846,8 @@ public class InAppBrowser extends CordovaPlugin {
             } catch (JSONException ex) {
                 Log.d(LOG_TAG, "Should never happen");
             }
+            
+            progressDialog.dismiss();
         }
     }
 }
