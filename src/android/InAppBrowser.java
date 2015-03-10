@@ -41,6 +41,7 @@ import android.view.WindowManager.LayoutParams;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.webkit.CookieManager;
+import android.webkit.DownloadListener;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -621,6 +622,29 @@ public class InAppBrowser extends CordovaPlugin {
                 settings.setBuiltInZoomControls(true);
                 settings.setPluginState(android.webkit.WebSettings.PluginState.ON);
 
+                // Handle downloads
+                inAppWebView.setDownloadListener(new DownloadListener() {
+                    public void onDownloadStart(String url,
+                                                String userAgent,
+                                                String contentDisposition,
+                                                String mimetype,
+                                                long contentLength) {
+                        
+                        try {
+                            JSONObject obj = new JSONObject();
+                            obj.put("type", "download");
+                            obj.put("url", url);
+                            obj.put("mimetype", mimetype);
+                            obj.put("contentDisposition", contentDisposition);
+                            
+                            sendUpdate(obj, true);
+                        } catch (JSONException ex) {
+                            Log.d(LOG_TAG, "Should never happen");
+                        }
+                        
+                    }
+                });
+                
                 //Toggle whether this is enabled or not!
                 Bundle appSettings = cordova.getActivity().getIntent().getExtras();
                 boolean enableDatabase = appSettings == null ? true : appSettings.getBoolean("InAppBrowserStorageEnabled", true);
