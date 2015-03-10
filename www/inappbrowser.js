@@ -29,6 +29,7 @@ function InAppBrowser() {
         'loadstart': channel.create('loadstart'),
         'loadstop' : channel.create('loadstop'),
         'loaderror' : channel.create('loaderror'),
+        'download' : channel.create('download'),
         'exit' : channel.create('exit')
    };
 }
