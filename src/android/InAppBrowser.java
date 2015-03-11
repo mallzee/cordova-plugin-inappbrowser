@@ -22,6 +22,7 @@ import android.annotation.SuppressLint;
 import android.app.ProgressDialog;
 import org.apache.cordova.inappbrowser.InAppBrowserDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.provider.Browser;
 import android.content.res.Resources;
@@ -727,8 +728,15 @@ public class InAppBrowser extends CordovaPlugin {
             this.edittext = mEditText;
             
             progressDialog = new ProgressDialog(webView.getContext());
-            progressDialog.setCancelable(false);
+            progressDialog.setCancelable(true);
+            progressDialog.setCanceledOnTouchOutside(false);
             progressDialog.setIndeterminate(true);
+            progressDialog.setOnCancelListener(new DialogInterface.OnCancelListener(){
+                @Override
+                public void onCancel(DialogInterface dialog){
+                    inAppWebView.stopLoading();
+                }
+            });
         }
 
         /**
