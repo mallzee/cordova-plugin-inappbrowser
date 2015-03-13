@@ -82,12 +82,14 @@ public class InAppBrowser extends CordovaPlugin {
     private static final String EXIT_EVENT = "exit";
     private static final String LOCATION = "location";
     private static final String TOOLBAR = "toolbar";
+    private static final String ZOOM = "zoom";
     private static final String HIDDEN = "hidden";
     private static final String LOAD_START_EVENT = "loadstart";
     private static final String LOAD_STOP_EVENT = "loadstop";
     private static final String LOAD_ERROR_EVENT = "loaderror";
     private static final String CLEAR_ALL_CACHE = "clearcache";
     private static final String CLEAR_SESSION_CACHE = "clearsessioncache";
+    private static final String HARDWARE_BACK_BUTTON = "hardwareback";
 
     private InAppBrowserDialog dialog;
     private WebView inAppWebView;
@@ -95,9 +97,11 @@ public class InAppBrowser extends CordovaPlugin {
     private CallbackContext callbackContext;
     private boolean showLocationBar = true;
     private boolean showToolbar = true;
+    private boolean showZoomControls = true;
     private boolean openWindowHidden = false;
     private boolean clearAllCache= false;
     private boolean clearSessionCache=false;
+    private boolean hadwareBackButton=true;
 
     /**
      * Executes the request and returns PluginResult.
@@ -401,10 +405,26 @@ public class InAppBrowser extends CordovaPlugin {
     /**
      * Checks to see if it is possible to go back one page in history, then does so.
      */
-    private void goBack() {
+    public void goBack() {
         if (this.inAppWebView.canGoBack()) {
             this.inAppWebView.goBack();
         }
+    }
+
+    /**
+     * Can the web browser go back?
+     * @return boolean
+     */
+    public boolean canGoBack() {
+        return this.inAppWebView.canGoBack();
+    }
+
+    /**
+     * Has the user set the hardware back button to go back
+     * @return boolean
+     */
+    public boolean hardwareBack() {
+        return hadwareBackButton;
     }
 
     /**
@@ -452,6 +472,15 @@ public class InAppBrowser extends CordovaPlugin {
         return this.showToolbar;
     }
 
+    /**
+     * Should we show the zoom controls?
+     *
+     * @return boolean
+     */
+    private boolean getShowZoomControls() {
+        return this.showZoomControls;
+    }
+
     private InAppBrowser getInAppBrowser(){
         return this;
     }
@@ -466,6 +495,7 @@ public class InAppBrowser extends CordovaPlugin {
         // Determine if we should hide the location bar.
         showLocationBar = true;
         showToolbar = true;
+        showZoomControls = true;
         openWindowHidden = false;
         if (features != null) {
             Boolean show = features.get(LOCATION);
@@ -476,9 +506,17 @@ public class InAppBrowser extends CordovaPlugin {
             if (toolbar != null) {
                 showToolbar = toolbar.booleanValue();
             }
+            Boolean zoom = features.get(ZOOM);
+            if (zoom != null) {
+                showZoomControls = zoom.booleanValue();
+            }            
             Boolean hidden = features.get(HIDDEN);
             if (hidden != null) {
                 openWindowHidden = hidden.booleanValue();
+            }
+            Boolean hardwareBack = features.get(HARDWARE_BACK_BUTTON);
+            if (hardwareBack != null) {
+                hadwareBackButton = hardwareBack.booleanValue();
             }
             Boolean cache = features.get(CLEAR_ALL_CACHE);
             if (cache != null) {
@@ -640,7 +678,7 @@ public class InAppBrowser extends CordovaPlugin {
                 WebSettings settings = inAppWebView.getSettings();
                 settings.setJavaScriptEnabled(true);
                 settings.setJavaScriptCanOpenWindowsAutomatically(true);
-                settings.setBuiltInZoomControls(true);
+                settings.setBuiltInZoomControls(getShowZoomControls());
                 settings.setPluginState(android.webkit.WebSettings.PluginState.ON);
 
                 // Handle downloads
