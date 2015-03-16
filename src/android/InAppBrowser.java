@@ -18,9 +18,12 @@
 */
 package org.apache.cordova.inappbrowser;
 
+import android.annotation.TargetApi;
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.app.ProgressDialog;
 import org.apache.cordova.inappbrowser.InAppBrowserDialog;
+import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -44,8 +47,13 @@ import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.webkit.CookieManager;
 import android.webkit.DownloadListener;
+import android.webkit.GeolocationPermissions.Callback;
+import android.webkit.JsPromptResult;
 import android.webkit.HttpAuthHandler;
+import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
+import android.webkit.WebStorage;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
@@ -62,6 +70,7 @@ import org.apache.cordova.CordovaWebView;
 import org.apache.cordova.LOG;
 import org.apache.cordova.PluginManager;
 import org.apache.cordova.PluginResult;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -983,6 +992,153 @@ public class InAppBrowser extends CordovaPlugin {
             
             // By default handle 401 like we'd normally do!
             super.onReceivedHttpAuthRequest(view, handler, host, realm);
+        }
+    }
+    
+    public class InAppChromeClient extends WebChromeClient {
+        
+        private CordovaWebView webView;
+        private String LOG_TAG = "InAppChromeClient";
+        private static final int FILECHOOSER_RESULTCODE = 5173;
+        private long MAX_QUOTA = 100 * 1024 * 1024;
+        
+        public InAppChromeClient(CordovaWebView webView) {
+            super();
+            this.webView = webView;
+        }
+        /**
+         * Handle database quota exceeded notification.
+         *
+         * @param url
+         * @param databaseIdentifier
+         * @param currentQuota
+         * @param estimatedSize
+         * @param totalUsedQuota
+         * @param quotaUpdater
+         */
+        @Override
+        public void onExceededDatabaseQuota(String url, String databaseIdentifier, long currentQuota, long estimatedSize,
+                                            long totalUsedQuota, WebStorage.QuotaUpdater quotaUpdater)
+        {
+            LOG.d(LOG_TAG, "onExceededDatabaseQuota estimatedSize: %d  currentQuota: %d  totalUsedQuota: %d", estimatedSize, currentQuota, totalUsedQuota);
+            quotaUpdater.updateQuota(MAX_QUOTA);
+        }
+        
+        /**
+         * Instructs the client to show a prompt to ask the user to set the Geolocation permission state for the specified origin.
+         *
+         * @param origin
+         * @param callback
+         */
+        @Override
+        public void onGeolocationPermissionsShowPrompt(String origin, Callback callback) {
+            super.onGeolocationPermissionsShowPrompt(origin, callback);
+            callback.invoke(origin, true, false);
+        }
+        
+        /**
+         * Tell the client to display a prompt dialog to the user.
+         * If the client returns true, WebView will assume that the client will
+         * handle the prompt dialog and call the appropriate JsPromptResult method.
+         *
+         * The prompt bridge provided for the InAppBrowser is capable of executing any
+         * oustanding callback belonging to the InAppBrowser plugin. Care has been
+         * taken that other callbacks cannot be triggered, and that no other code
+         * execution is possible.
+         *
+         * To trigger the bridge, the prompt default value should be of the form:
+         *
+         * gap-iab://<callbackId>
+         *
+         * where <callbackId> is the string id of the callback to trigger (something
+         * like "InAppBrowser0123456789")
+         *
+         * If present, the prompt message is expected to be a JSON-encoded value to
+         * pass to the callback. A JSON_EXCEPTION is returned if the JSON is invalid.
+         *
+         * @param view
+         * @param url
+         * @param message
+         * @param defaultValue
+         * @param result
+         */
+        @Override
+        public boolean onJsPrompt(WebView view, String url, String message, String defaultValue, JsPromptResult result) {
+            // See if the prompt string uses the 'gap-iab' protocol. If so, the remainder should be the id of a callback to execute.
+            if (defaultValue != null && defaultValue.startsWith("gap")) {
+                if(defaultValue.startsWith("gap-iab://")) {
+                    PluginResult scriptResult;
+                    String scriptCallbackId = defaultValue.substring(10);
+                    if (scriptCallbackId.startsWith("InAppBrowser")) {
+                        if(message == null || message.length() == 0) {
+                            scriptResult = new PluginResult(PluginResult.Status.OK, new JSONArray());
+                        } else {
+                            try {
+                                scriptResult = new PluginResult(PluginResult.Status.OK, new JSONArray(message));
+                            } catch(JSONException e) {
+                                scriptResult = new PluginResult(PluginResult.Status.JSON_EXCEPTION, e.getMessage());
+                            }
+                        }
+                        this.webView.sendPluginResult(scriptResult, scriptCallbackId);
+                        result.confirm("");
+                        return true;
+                    }
+                }
+                else
+                {
+                    // Anything else with a gap: prefix should get this message
+                    LOG.w(LOG_TAG, "InAppBrowser does not support Cordova API calls: " + url + " " + defaultValue);
+                    result.cancel();
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        // <input type=file> support:
+        // openFileChooser() is for pre KitKat and in KitKat mr1 (it's known broken in KitKat).
+        // For Lollipop, we use onShowFileChooser().
+        public void openFileChooser(ValueCallback<Uri> uploadMsg) {
+            this.openFileChooser(uploadMsg, "*/*");
+        }
+        
+        public void openFileChooser( ValueCallback<Uri> uploadMsg, String acceptType ) {
+            this.openFileChooser(uploadMsg, acceptType, null);
+        }
+        
+        public void openFileChooser(final ValueCallback<Uri> uploadMsg, String acceptType, String capture)
+        {
+            Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("*/*");
+            cordova.startActivityForResult(new CordovaPlugin() {
+                @Override
+                public void onActivityResult(int requestCode, int resultCode, Intent intent) {
+                    Uri result = intent == null || resultCode != Activity.RESULT_OK ? null : intent.getData();
+                    Log.d(LOG_TAG, "Receive file chooser URL: " + result);
+                    uploadMsg.onReceiveValue(result);
+                }
+            }, intent, FILECHOOSER_RESULTCODE);
+        }
+        
+        @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+        @Override
+        public boolean onShowFileChooser(WebView webView, final ValueCallback<Uri[]> filePathsCallback, final WebChromeClient.FileChooserParams fileChooserParams) {
+            Intent intent = fileChooserParams.createIntent();
+            try {
+                cordova.startActivityForResult(new CordovaPlugin() {
+                    @Override
+                    public void onActivityResult(int requestCode, int resultCode, Intent intent) {
+                        Uri[] result = WebChromeClient.FileChooserParams.parseResult(resultCode, intent);
+                        Log.d(LOG_TAG, "Receive file chooser URL: " + result);
+                        filePathsCallback.onReceiveValue(result);
+                    }
+                }, intent, FILECHOOSER_RESULTCODE);
+            } catch (ActivityNotFoundException e) {
+                Log.w("No activity found to handle file chooser intent.", e);
+                filePathsCallback.onReceiveValue(null);
+            }
+            return true;
         }
     }
 }
