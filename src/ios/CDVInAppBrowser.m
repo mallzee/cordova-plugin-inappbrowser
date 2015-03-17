@@ -836,6 +836,10 @@
     BOOL isTopLevelNavigation = [request.URL isEqual:[request mainDocumentURL]];
 
     if (isTopLevelNavigation) {
+        //implement onbeforeunload...sort of
+        if(![[theWebView stringByEvaluatingJavaScriptFromString:@"var unload; window.onbeforeunload && (unload = window.onbeforeunload()) ? confirm('Confirm Navigation\\n' + unload + '\\nAre you sure you want to leave the page?' ) : true"] isEqualToString:@"true"]){
+            return NO;
+        }
         self.currentURL = request.URL;
     }
     return [self.navigationDelegate webView:theWebView shouldStartLoadWithRequest:request navigationType:navigationType];
