@@ -75,11 +75,11 @@
 
 - (BOOL) isSystemUrl:(NSURL*)url
 {
-	if ([[url host] isEqualToString:@"itunes.apple.com"]) {
-		return YES;
-	}
+    if ([[url host] isEqualToString:@"itunes.apple.com"]) {
+        return YES;
+    }
 
-	return NO;
+    return NO;
 }
 
 - (void)open:(CDVInvokedUrlCommand*)command
@@ -165,6 +165,9 @@
     [self.inAppBrowserViewController showToolBar:browserOptions.toolbar :browserOptions.toolbarposition];
     if (browserOptions.closebuttoncaption != nil) {
         [self.inAppBrowserViewController setCloseButtonTitle:browserOptions.closebuttoncaption];
+    }
+    if (browserOptions.title != nil) {
+        [self.inAppBrowserViewController setTitle:browserOptions.title];
     }
     // Set Presentation Style
     UIModalPresentationStyle presentationStyle = UIModalPresentationFullScreen; // default
@@ -522,11 +525,11 @@
     self.spinner.opaque = NO;
     self.spinner.userInteractionEnabled = NO;
     [self.spinner stopAnimating];
+    [[UIApplication sharedApplication] setNetworkActivityIndicatorVisible:NO];
 
     self.closeButton = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemDone target:self action:@selector(close)];
+    self.closeButton.tintColor = [UIColor whiteColor];
     self.closeButton.enabled = YES;
-
-    UIBarButtonItem* flexibleSpaceButton = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:nil];
 
     UIBarButtonItem* fixedSpaceButton = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFixedSpace target:nil action:nil];
     fixedSpaceButton.width = 20;
@@ -534,11 +537,13 @@
     float toolbarY = toolbarIsAtBottom ? self.view.bounds.size.height - TOOLBAR_HEIGHT : 0.0;
     CGRect toolbarFrame = CGRectMake(0.0, toolbarY, self.view.bounds.size.width, TOOLBAR_HEIGHT);
 
-    self.toolbar = [[UIToolbar alloc] initWithFrame:toolbarFrame];
+    self.toolbar = [[UINavigationBar alloc] initWithFrame:toolbarFrame];
     self.toolbar.alpha = 1.000;
     self.toolbar.autoresizesSubviews = YES;
     self.toolbar.autoresizingMask = toolbarIsAtBottom ? (UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleTopMargin) : UIViewAutoresizingFlexibleWidth;
     self.toolbar.barStyle = UIBarStyleBlack;
+    self.toolbar.barTintColor = [UIColor colorWithRed:0.26f green:0.26f blue:0.26f alpha:1];
+    self.toolbar.tintColor = [UIColor whiteColor];
     self.toolbar.translucent = NO;
     self.toolbar.clearsContextBeforeDrawing = NO;
     self.toolbar.clipsToBounds = NO;
@@ -583,14 +588,20 @@
     NSString* frontArrowString = NSLocalizedString(@"►", nil); // create arrow from Unicode char
     self.forwardButton = [[UIBarButtonItem alloc] initWithTitle:frontArrowString style:UIBarButtonItemStylePlain target:self action:@selector(goForward:)];
     self.forwardButton.enabled = YES;
+    self.forwardButton.tintColor = [UIColor whiteColor];
     self.forwardButton.imageInsets = UIEdgeInsetsZero;
 
     NSString* backArrowString = NSLocalizedString(@"◄", nil); // create arrow from Unicode char
     self.backButton = [[UIBarButtonItem alloc] initWithTitle:backArrowString style:UIBarButtonItemStylePlain target:self action:@selector(goBack:)];
     self.backButton.enabled = YES;
+    self.backButton.tintColor = [UIColor whiteColor];
     self.backButton.imageInsets = UIEdgeInsetsZero;
 
-    [self.toolbar setItems:@[self.closeButton, flexibleSpaceButton, self.backButton, fixedSpaceButton, self.forwardButton]];
+    UINavigationItem *navBar = [[UINavigationItem alloc] initWithTitle:@""];
+    navBar.titleView.tintColor = [UIColor whiteColor];
+    [self.toolbar pushNavigationItem:navBar animated:NO];
+    [navBar setLeftBarButtonItem:self.closeButton];
+    [navBar setRightBarButtonItems:@[self.forwardButton, fixedSpaceButton, self.backButton]];
 
     self.view.backgroundColor = [UIColor grayColor];
     [self.view addSubview:self.toolbar];
@@ -610,11 +621,16 @@
     self.closeButton = nil;
     self.closeButton = [[UIBarButtonItem alloc] initWithTitle:title style:UIBarButtonItemStyleBordered target:self action:@selector(close)];
     self.closeButton.enabled = YES;
-    self.closeButton.tintColor = [UIColor colorWithRed:60.0 / 255.0 green:136.0 / 255.0 blue:230.0 / 255.0 alpha:1];
+    self.closeButton.tintColor = [UIColor whiteColor];
 
     NSMutableArray* items = [self.toolbar.items mutableCopy];
     [items replaceObjectAtIndex:0 withObject:self.closeButton];
     [self.toolbar setItems:items];
+}
+
+- (void)setTitle:(NSString *)title
+{
+    self.toolbar.topItem.title = title;
 }
 
 - (void)showLocationBar:(BOOL)show
@@ -827,6 +843,7 @@
     self.forwardButton.enabled = theWebView.canGoForward;
 
     [self.spinner startAnimating];
+    [[UIApplication sharedApplication] setNetworkActivityIndicatorVisible:YES];
 
     return [self.navigationDelegate webViewDidStartLoad:theWebView];
 }
@@ -854,6 +871,7 @@
     self.forwardButton.enabled = theWebView.canGoForward;
 
     [self.spinner stopAnimating];
+    [[UIApplication sharedApplication] setNetworkActivityIndicatorVisible:NO];
 
     // Work around a bug where the first time a PDF is opened, all UIWebViews
     // reload their User-Agent from NSUserDefaults.
@@ -882,6 +900,7 @@
     self.backButton.enabled = theWebView.canGoBack;
     self.forwardButton.enabled = theWebView.canGoForward;
     [self.spinner stopAnimating];
+    [[UIApplication sharedApplication] setNetworkActivityIndicatorVisible:NO];
 
     self.addressLabel.text = NSLocalizedString(@"Load Error", nil);
 
@@ -1014,4 +1033,3 @@
 
 
 @end
-
